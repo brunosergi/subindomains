@@ -10,13 +10,13 @@ from pwn import *
 
 start_time = time.time()
 
-def key_handler(sig, frame):
+def keyHandler(sig, frame):
 	print(colored("\n[!] Ctrl + C pressed. Program ended...\n", "red"))
 	print(f"Total elapsed time: {int(time.time() - start_time)} seconds")
 	sys.exit(1)
-signal.signal(signal.SIGINT, key_handler)
+signal.signal(signal.SIGINT, keyHandler)
 
-def get_options():
+def getOptions():
 	parser = optparse.OptionParser(description='SubInDomains is a subdomain fuzzer developed in python3 using asynchronous requests.', epilog='Eg.: python3 subindomains.py -d http://example.com/ -w /path/to/the/wordlist.txt')
 	parser.add_option('-d', '--domain', dest='domain', help='Target domain to be fuzzed.')
 	parser.add_option('-w', '--wordlist', dest='wordlist', help='Path to the wordlist that will be used.')
@@ -29,7 +29,7 @@ def get_options():
 		sys.exit(1)
 	return options
 
-def prepare_wordlist(wordlist):
+def prepareWordlist(wordlist):
 	try:
 		wordlist = open (wordlist, 'r')
 		content = wordlist.read()
@@ -39,7 +39,7 @@ def prepare_wordlist(wordlist):
 		print (colored("\n[!] Wordlist not found.\n", "yellow"))
 		sys.exit(1)
 
-def prepare_url(domain, subdomains):
+def prepareURLs(domain, subdomains):
 	if domain.startswith('http://') or domain.startswith('https://'):
 		domain = re.sub(r'https?:\/\/', '', domain)
 	urls = []
@@ -50,23 +50,23 @@ def prepare_url(domain, subdomains):
 			domain += '/'		
 	return urls
 
-async def fuzz_subdomains(r, urls):
+async def fuzzSubdomains(r, urls):
 	p1 = log.progress(f"")
 	print(f"Discovered subdomains:")
 	for url in urls:
 		tasks = []
 		p1.status(colored(f"Fuzzing {url}", "blue"))
 		try:
-			timeout = ClientTimeout(connect=7)
+			timeout = ClientTimeout(connect=5)
 			async with ClientSession(timeout=timeout) as session:
 				for i in range(r):
-					task = asyncio.ensure_future(fetch_urls(session, url.format(i)))
+					task = asyncio.ensure_future(fetchURLs(session, url.format(i)))
 					tasks.append(task)
 				responses = await asyncio.gather(*tasks)
 		except:
 			pass
 
-async def fetch_urls(session, url):
+async def fetchURLs(session, url):
 	try:
 		async with session.get(url) as response:
 			if response.status == 200:
@@ -79,11 +79,11 @@ async def fetch_urls(session, url):
 
 def main():
 	try:
-		options = get_options()
+		options = getOptions()
 		loop = asyncio.get_event_loop()
-		subdomains = prepare_wordlist(options.wordlist)
-		urls = prepare_url(options.domain, subdomains)
-		future = asyncio.ensure_future(fuzz_subdomains(1, urls))
+		subdomains = prepareWordlist(options.wordlist)
+		urls = prepareURLs(options.domain, subdomains)
+		future = asyncio.ensure_future(fuzzSubdomains(1, urls))
 		loop.run_until_complete(future)
 	except Exception as e:
 		log.error(str(e))
