@@ -29,7 +29,6 @@ def getOptions():
 		log.failure(colored("Please specify the target domain, use --help for more info.\n", "yellow"))
 		sys.exit(1)
 	elif not options.wordlist:
-		#parser.error(colored("[!] Please specify an wordlist path, use --help for more info.", "yellow"))
 		log.failure(colored("Please specify an wordlist path, use --help for more info.\n", "yellow"))
 		sys.exit(1)
 	return options
