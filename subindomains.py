@@ -1,6 +1,10 @@
+#!/usr/bin/python3
+
 import optparse
 import re
 import time
+import aiohttp
+import requests
 import asyncio
 from aiohttp import ClientSession, ClientConnectionError, ClientTimeout
 from sys import exit
@@ -22,21 +26,20 @@ def getOptions():
 	parser.add_option('-w', '--wordlist', dest='wordlist', help='Path to the wordlist that will be used.')
 	(options, arguments) = parser.parse_args()
 	if not options.domain:
-		parser.error(colored("[!] Please specify the target domain, use --help for more info.", "yellow"))
+		log.failure(colored("Please specify the target domain, use --help for more info.\n", "yellow"))
 		sys.exit(1)
 	elif not options.wordlist:
-		parser.error(colored("[!] Please specify an wordlist path, use --help for more info.", "yellow"))
+		#parser.error(colored("[!] Please specify an wordlist path, use --help for more info.", "yellow"))
+		log.failure(colored("Please specify an wordlist path, use --help for more info.\n", "yellow"))
 		sys.exit(1)
 	return options
 
 def prepareWordlist(wordlist):
 	try:
-		wordlist = open (wordlist, 'r')
-		content = wordlist.read()
-		subdomains = content.splitlines()
+		subdomains = open (wordlist, 'r').read().splitlines()
 		return subdomains
 	except Exception:
-		print (colored("\n[!] Wordlist not found.\n", "yellow"))
+		log.failure(colored("Wordlist not found.\n", "red"))
 		sys.exit(1)
 
 def prepareURLs(domain, subdomains):
@@ -48,16 +51,30 @@ def prepareURLs(domain, subdomains):
 			urls.append(f'http://{subdomain}.{domain}')
 		if not domain.endswith('/'):
 			domain += '/'		
+	statusCheck(f'http://{domain}')
 	return urls
 
+def statusCheck(domain):
+	try:
+		check = requests.get(domain, timeout=6)
+		if check.status_code == 200:
+			pass
+		else:
+			log.failure(colored(f"The domain '{domain}' is invalid or down, use --help for more info.\n", "red"))
+			sys.exit(1)
+	except:
+			log.failure(colored(f"The domain '{domain}' is invalid or down, use --help for more info.\n", "red"))
+			sys.exit(1)
+
 async def fuzzSubdomains(r, urls):
+	log.info('SubInDomains - A Python3 Subdomain Fuzzer')
 	p1 = log.progress(f"")
 	print(f"Discovered subdomains:")
 	for url in urls:
 		tasks = []
 		p1.status(colored(f"Fuzzing {url}", "blue"))
 		try:
-			timeout = ClientTimeout(connect=5)
+			timeout = ClientTimeout(connect=6)
 			async with ClientSession(timeout=timeout) as session:
 				for i in range(r):
 					task = asyncio.ensure_future(fetchURLs(session, url.format(i)))
@@ -80,15 +97,15 @@ async def fetchURLs(session, url):
 def main():
 	try:
 		options = getOptions()
-		loop = asyncio.get_event_loop()
 		subdomains = prepareWordlist(options.wordlist)
 		urls = prepareURLs(options.domain, subdomains)
+		loop = asyncio.get_event_loop()
 		future = asyncio.ensure_future(fuzzSubdomains(1, urls))
 		loop.run_until_complete(future)
+		print(f"Total elapsed time: {int(time.time() - start_time)} seconds")
+		sys.exit(0)
 	except Exception as e:
 		log.error(str(e))
 
 if __name__ == '__main__':
 	main()
-	print(f"Total elapsed time: {int(time.time() - start_time)} seconds")
-	sys.exit(0)
